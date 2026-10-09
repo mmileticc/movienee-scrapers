@@ -1,0 +1,15 @@
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.idea/
+*.iml
+out/
+.vscode/
+.kotlin/
+scraper-debug/
+/*.json
+.env
+.DS_Store
+local.properties
+*.log
+_site/

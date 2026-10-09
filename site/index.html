@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Movienee Scrapers</title>
+  <meta name="description" content="Kotlin scrapers that turn the websites of seven Serbian cinema chains into one uniform data model.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23E50914'/%3E%3Cpath d='M9 22V10l7 7 7-7v12' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#">movie<span>nee</span> <small>scrapers</small></a>
+    <nav>
+      <a href="#cinemas">Cinemas</a>
+      <a href="#how">How it works</a>
+      <a href="#try">Try it</a>
+      <a href="docs/index.html">Docs</a>
+      <a class="gh" href="https://github.com/mmileticc/movienee-scrapers" aria-label="GitHub repository">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Kotlin · Jsoup · Playwright · Coroutines</p>
+      <h1>Seven cinema websites.<br><span>One clean data model.</span></h1>
+      <p class="lead">
+        Scrapers for the current and upcoming movie programme of the major cinema chains in Serbia.
+        Every site is different - server-rendered pages, React and Nuxt apps - and every one ends up
+        as the same <code>ScrapedMovie</code>: title, original title, cinema location, coordinates
+        and a booking link.
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/mmileticc/movienee-scrapers">View on GitHub</a>
+        <a class="btn" href="docs/index.html">API documentation</a>
+      </div>
+      <dl class="stats">
+        <div><dt>7</dt><dd>cinema chains</dd></div>
+        <div><dt>20</dt><dd>cinema locations</dd></div>
+        <div><dt>2</dt><dd>scraping techniques</dd></div>
+        <div><dt>1</dt><dd>uniform model</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section id="cinemas" class="section">
+    <div class="wrap">
+      <h2>Supported cinemas</h2>
+      <p class="sub">Server-rendered sites are read with plain HTTP and Jsoup. JavaScript apps are rendered in headless Chromium through Playwright.</p>
+      <div class="grid cinemas">
+        <article class="card"><span class="tag pw">Playwright</span><h3>Cineplexx</h3><p class="where">7 cinemas · Belgrade, Novi Sad, Niš, Kragujevac</p><p>React app. The list page gives the movies; each movie page gives the original title and the cinemas showing it.</p></article>
+        <article class="card"><span class="tag pw">Playwright</span><h3>Cine Grand</h3><p class="where">Several locations · Belgrade, Niš, Čačak, Šabac</p><p>Nuxt app organized per movie: one detail page lists every location with screenings.</p></article>
+        <article class="card"><span class="tag pw">Playwright</span><h3>CineStar</h3><p class="where">4 locations · Belgrade, Novi Sad, Pančevo, Zrenjanin</p><p>One page per location; each movie page is opened only once, however many locations show it.</p></article>
+        <article class="card"><span class="tag js">Jsoup</span><h3>MTS Dvorana</h3><p class="where">Belgrade</p><p>Nuxt site with server-rendered cards, so plain HTTP is enough. Events are filtered out.</p></article>
+        <article class="card"><span class="tag js">Jsoup</span><h3>Arena Cineplex</h3><p class="where">Novi Sad</p><p>Programme per date at <code>/repertoar/YYYY-MM-DD</code>, plus a coming-soon page.</p></article>
+        <article class="card"><span class="tag js">Jsoup</span><h3>Roda Cineplex</h3><p class="where">Belgrade</p><p>Same platform as Arena, so the scraper is intentionally almost identical.</p></article>
+        <article class="card"><span class="tag js">Jsoup</span><h3>Tuckwood Cineplex</h3><p class="where">Belgrade</p><p>WordPress site; titles come as "Local / Original" and are split safely. Retries a slow server once.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="section alt">
+    <div class="wrap">
+      <h2>How it works</h2>
+      <div class="flow" role="img" aria-label="Websites are read by scrapers, run in parallel by the engine, and produce a list of ScrapedMovie">
+        <div class="node"><b>7 websites</b><span>HTML pages &amp; JS apps</span></div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="node"><b>CinemaScraper</b><span>one per chain<br>Jsoup or Playwright</span></div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="node accent"><b>ScrapingEngineConcurrent</b><span>all chains in parallel<br>coroutines · Dispatchers.IO</span></div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="node"><b>List&lt;ScrapedMovie&gt;</b><span>console summary<br>or JSON file</span></div>
+      </div>
+
+      <h3 class="h3">Engineering highlights</h3>
+      <div class="grid highlights">
+        <div class="hl"><h4>Real browser where it is needed</h4><p>React and Nuxt sites render their content in JavaScript, so they are opened in headless Chromium. Images, fonts and media are blocked to keep it fast.</p></div>
+        <div class="hl"><h4>One row per movie and location</h4><p>Chains that list movies globally open each movie page to find its cinemas. Coming-soon entries are de-duplicated against today's programme.</p></div>
+        <div class="hl"><h4>Fault isolation</h4><p>A failing site only loses its own cinema; the rest of the run continues. Detail pages are retried once.</p></div>
+        <div class="hl"><h4>Debug snapshots</h4><p>When a Playwright page fails, its HTML and a full-page screenshot are saved to <code>scraper-debug/</code> - usually enough to see whether a selector changed or the request was blocked.</p></div>
+        <div class="hl"><h4>Original titles</h4><p>Extracted wherever the site has them; they make matching a movie against databases like TMDB far more reliable than local titles.</p></div>
+        <div class="hl"><h4>Coordinates</h4><p>Every location has coordinates, so results can be sorted by distance from the user.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="try" class="section">
+    <div class="wrap">
+      <h2>Try it</h2>
+      <div class="grid two">
+        <div>
+          <h3 class="h3">Docker <small>no JDK or browser setup</small></h3>
+          <div class="code"><button class="copy" type="button">Copy</button><pre><code>docker build -t movienee-scrapers .
+docker run --rm --ipc=host movienee-scrapers --cinema arena</code></pre></div>
+          <div class="code"><button class="copy" type="button">Copy</button><pre><code>docker run --rm --ipc=host -v "$PWD/output:/output" \
+  movienee-scrapers --json results.json</code></pre></div>
+        </div>
+        <div>
+          <h3 class="h3">Gradle <small>JDK 21</small></h3>
+          <div class="code"><button class="copy" type="button">Copy</button><pre><code>./gradlew playwrightCli --args="install chromium"
+./gradlew run --args="--cinema roda --date 2026-10-10"</code></pre></div>
+          <table class="opts">
+            <tr><td><code>--cinema &lt;name&gt;</code></td><td>only this chain (repeatable)</td></tr>
+            <tr><td><code>--date &lt;yyyy-MM-dd&gt;</code></td><td>programme date (default today)</td></tr>
+            <tr><td><code>--json &lt;file&gt;</code></td><td>also write results as JSON</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sample" class="section alt">
+    <div class="wrap">
+      <h2>Sample output</h2>
+      <p class="sub" id="sample-caption">A few rows from a real run.</p>
+      <div class="filters" id="sample-filters" hidden></div>
+      <div class="table-wrap">
+        <table class="sample" id="sample-table" hidden>
+          <thead><tr><th>Title</th><th>Original title</th><th>Chain</th><th>Location</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="note" id="sample-empty" hidden>No sample yet - run the scraper with <code>--json</code> and see the format below.</p>
+    </div>
+  </section>
+
+  <section id="model" class="section">
+    <div class="wrap">
+      <h2>Data model</h2>
+      <p class="sub">Every scraper returns a list of <code>ScrapedMovie</code> - one entry per movie and cinema location. <a href="docs/index.html">Full API docs →</a></p>
+      <div class="table-wrap">
+        <table class="model">
+          <thead><tr><th>Field</th><th>Type</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>title</code></td><td>String</td><td>Title as shown by the cinema (usually Serbian)</td></tr>
+            <tr><td><code>originalTitle</code></td><td>String?</td><td>Original title, when the site provides it</td></tr>
+            <tr><td><code>cinemaName</code></td><td>String</td><td>Chain, e.g. <code>Cineplexx</code></td></tr>
+            <tr><td><code>cinemaLocation</code></td><td>String</td><td>Location, e.g. <code>CINEPLEXX 4D DELTA CITY</code>; <code>Coming soon</code> when none is scheduled yet</td></tr>
+            <tr><td><code>latitude</code>, <code>longitude</code></td><td>Double?</td><td>Coordinates of the location</td></tr>
+            <tr><td><code>bookingUrl</code></td><td>String</td><td>Link to the movie on the cinema's website</td></tr>
+            <tr><td><code>isUpcoming</code></td><td>Boolean</td><td>Coming soon rather than now showing</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p><strong>Disclaimer.</strong> An unofficial, non-commercial project, not affiliated with any of the cinemas. All programme data belongs to the respective cinemas. Websites change, so selectors that work today may break tomorrow. If you run the scrapers, please do so rarely and in line with each site's terms of use.</p>
+    <p class="meta">MIT License · <a href="https://github.com/mmileticc/movienee-scrapers">github.com/mmileticc/movienee-scrapers</a> · <a href="docs/index.html">API docs</a></p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

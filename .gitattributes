@@ -1,0 +1,7 @@
+* text=auto
+# Shell scripts must keep LF, otherwise they fail inside the Linux Docker image.
+gradlew text eol=lf
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.bat text eol=crlf
+*.jar binary

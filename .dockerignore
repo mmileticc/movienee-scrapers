@@ -1,0 +1,9 @@
+.gradle/
+build/
+.kotlin/
+.idea/
+*.iml
+.git/
+scraper-debug/
+*.json
+output/
