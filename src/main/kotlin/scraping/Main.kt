@@ -25,7 +25,11 @@ private val ALL_SCRAPERS: List<CinemaScraper> = listOf(
     TuckwoodCineplexScraper(),
 )
 
-private val prettyJson = Json { prettyPrint = true }
+// encodeDefaults: also write fields with default values (e.g. isUpcoming = false).
+private val prettyJson = Json {
+    prettyPrint = true
+    encodeDefaults = true
+}
 
 private const val USAGE = """
 Usage: ./gradlew run --args="[options]"

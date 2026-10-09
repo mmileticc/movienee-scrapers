@@ -261,6 +261,7 @@ class CineplexxScraper : CinemaScraper {
             } catch (e: Exception) {
                 val suffix = if (attempt < maxAttempts) " - retrying" else ""
                 logger.warn("[$cinemaName] Failed to read the movie page (attempt $attempt/$maxAttempts): ${e.message}$suffix")
+                if (attempt == maxAttempts) saveDebugSnapshot(detailPage, cinemaName, "movie-page")
             } finally {
                 detailPage.close()
             }

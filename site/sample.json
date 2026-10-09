@@ -1,0 +1,65 @@
+{
+  "snapshotDate": "2026-10-09",
+  "movies": [
+    {
+      "title": "Spajdermen: Novi Dan",
+      "originalTitle": "Spider-Man: Brand New Day",
+      "cinemaName": "Cineplexx",
+      "cinemaLocation": "CINEPLEXX 4D DELTA CITY",
+      "latitude": 44.80579810936114,
+      "longitude": 20.404207705350725,
+      "bookingUrl": "https://www.cineplexx.rs/film/spajdermen-novi-dan?date=2026-10-09&location=all",
+      "isUpcoming": false
+    },
+    {
+      "title": "Odiseja",
+      "originalTitle": "The Odyssey",
+      "cinemaName": "Cineplexx",
+      "cinemaLocation": "CINEPLEXX BIG KRAGUJEVAC",
+      "latitude": 44.00873780212743,
+      "longitude": 20.89577123895372,
+      "bookingUrl": "https://www.cineplexx.rs/film/odiseja?date=2026-10-09&location=all",
+      "isUpcoming": false
+    },
+    {
+      "title": "Malci i monstrumi",
+      "originalTitle": "Minions & Monsters",
+      "cinemaName": "Cineplexx",
+      "cinemaLocation": "CINEPLEXX BEO SHOPPING CENTER",
+      "latitude": 44.786846727556295,
+      "longitude": 20.502239250635675,
+      "bookingUrl": "https://www.cineplexx.rs/film/malci-i-monstrumi?date=2026-10-09&location=all",
+      "isUpcoming": false
+    },
+    {
+      "title": "Lov na čoveka",
+      "originalTitle": "Manhunt",
+      "cinemaName": "Cineplexx",
+      "cinemaLocation": "CINEPLEXX GALERIJA",
+      "latitude": 44.80292957091388,
+      "longitude": 20.445541710162807,
+      "bookingUrl": "https://www.cineplexx.rs/film/lov-na-coveka?date=2026-10-09&location=all",
+      "isUpcoming": false
+    },
+    {
+      "title": "Dina: Treći Deo",
+      "originalTitle": "Dune: Part Three",
+      "cinemaName": "Cineplexx",
+      "cinemaLocation": "Coming soon",
+      "latitude": null,
+      "longitude": null,
+      "bookingUrl": "https://www.cineplexx.rs/film/Dina-Treci-Deo?date=all&location=null",
+      "isUpcoming": true
+    },
+    {
+      "title": "Igre gladi: Osvit dana žetve",
+      "originalTitle": "The Hunger Games: Sunrise on the Reaping",
+      "cinemaName": "Cineplexx",
+      "cinemaLocation": "Coming soon",
+      "latitude": null,
+      "longitude": null,
+      "bookingUrl": "https://www.cineplexx.rs/film/igre-gladi-osvit-dana-zetve?date=all&location=null",
+      "isUpcoming": true
+    }
+  ]
+}
