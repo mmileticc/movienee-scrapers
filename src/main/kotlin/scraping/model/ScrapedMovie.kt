@@ -13,6 +13,8 @@ data class ScrapedMovie(
     val longitude: Double?,         // for sorting cinemas by distance
     val bookingUrl: String,
     val isUpcoming: Boolean = false,
+    /** Screenings in the next [com.milinko.scraping.agent.ScrapingConfig.SHOWTIME_DAYS] days, sorted; empty if the scraper does not read them yet. */
+    val showtimes: List<ScrapedShowtime> = emptyList(),
 ) {
     companion object {
         /** [cinemaLocation] of a coming-soon movie that no cinema has scheduled yet. */

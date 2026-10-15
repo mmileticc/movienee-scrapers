@@ -29,7 +29,7 @@
 <main>
   <section class="hero">
     <div class="wrap">
-      <p class="eyebrow">Kotlin · Jsoup · Playwright · Coroutines</p>
+      <p class="eyebrow">Kotlin · Jsoup · JSON APIs · Coroutines</p>
       <h1>Seven cinema websites.<br><span>One clean data model.</span></h1>
       <p class="lead">
         Scrapers for the current and upcoming movie programme of the major cinema chains in Serbia.
@@ -53,15 +53,15 @@
   <section id="cinemas" class="section">
     <div class="wrap">
       <h2>Supported cinemas</h2>
-      <p class="sub">Server-rendered sites are read with plain HTTP and Jsoup. JavaScript apps are rendered in headless Chromium through Playwright.</p>
+      <p class="sub">Every chain is read over plain HTTP: server-rendered pages with Jsoup, JavaScript sites from the JSON data they embed or load. Showtimes of the next 7 days come with a link to buy each screening.</p>
       <div class="grid cinemas">
-        <article class="card"><span class="tag pw">Playwright</span><h3>Cineplexx</h3><p class="where">7 cinemas · Belgrade, Novi Sad, Niš, Kragujevac</p><p>React app. The list page gives the movies; each movie page gives the original title and the cinemas showing it.</p></article>
-        <article class="card"><span class="tag pw">Playwright</span><h3>Cine Grand</h3><p class="where">Several locations · Belgrade, Niš, Čačak, Šabac</p><p>Nuxt app organized per movie: one detail page lists every location with screenings.</p></article>
-        <article class="card"><span class="tag pw">Playwright</span><h3>CineStar</h3><p class="where">4 locations · Belgrade, Novi Sad, Pančevo, Zrenjanin</p><p>One page per location; each movie page is opened only once, however many locations show it.</p></article>
-        <article class="card"><span class="tag js">Jsoup</span><h3>MTS Dvorana</h3><p class="where">Belgrade</p><p>Nuxt site with server-rendered cards, so plain HTTP is enough. Events are filtered out.</p></article>
+        <article class="card"><span class="tag pw">JSON API</span><h3>Cineplexx</h3><p class="where">7 cinemas · Belgrade, Novi Sad, Niš, Kragujevac</p><p>React app backed by a JSON API: movies per day, sessions per movie at every cinema. Falls back to Playwright if the API fails.</p></article>
+        <article class="card"><span class="tag pw">Nuxt JSON</span><h3>Cine Grand</h3><p class="where">Several locations · Belgrade, Niš, Čačak, Šabac</p><p>Nuxt app organized per movie: the state embedded in each movie page lists every screening at every location.</p></article>
+        <article class="card"><span class="tag js">Jsoup</span><h3>CineStar</h3><p class="where">4 locations · Belgrade, Novi Sad, Pančevo, Zrenjanin</p><p>One page per location with every screening (4DX, ScreenX...); each movie page is opened only once, however many locations show it.</p></article>
+        <article class="card"><span class="tag pw">Nuxt JSON</span><h3>MTS Dvorana</h3><p class="where">Belgrade</p><p>Same platform as Cine Grand: movie cards in the HTML, screenings from the embedded state. Events are filtered out.</p></article>
         <article class="card"><span class="tag js">Jsoup</span><h3>Arena Cineplex</h3><p class="where">Novi Sad</p><p>Programme per date at <code>/repertoar/YYYY-MM-DD</code>, plus a coming-soon page.</p></article>
-        <article class="card"><span class="tag js">Jsoup</span><h3>Roda Cineplex</h3><p class="where">Belgrade</p><p>Same platform as Arena, so the scraper is intentionally almost identical.</p></article>
-        <article class="card"><span class="tag js">Jsoup</span><h3>Tuckwood Cineplex</h3><p class="where">Belgrade</p><p>WordPress site; titles come as "Local / Original" and are split safely. Retries a slow server once.</p></article>
+        <article class="card"><span class="tag js">Jsoup</span><h3>Roda Cineplex</h3><p class="where">Belgrade</p><p>Same platform as Arena, so both share one scraper class with a different address.</p></article>
+        <article class="card"><span class="tag js">Jsoup</span><h3>Tuckwood Cineplex</h3><p class="where">Belgrade</p><p>WordPress site; titles come as "Local / Original", halls are named after film stars. Retries a slow server once.</p></article>
       </div>
     </div>
   </section>
@@ -72,7 +72,7 @@
       <div class="flow" role="img" aria-label="Websites are read by scrapers, run in parallel by the engine, and produce a list of ScrapedMovie">
         <div class="node"><b>7 websites</b><span>HTML pages &amp; JS apps</span></div>
         <div class="arrow" aria-hidden="true"></div>
-        <div class="node"><b>CinemaScraper</b><span>one per chain<br>Jsoup or Playwright</span></div>
+        <div class="node"><b>CinemaScraper</b><span>one per chain<br>Jsoup or JSON</span></div>
         <div class="arrow" aria-hidden="true"></div>
         <div class="node accent"><b>ScrapingEngineConcurrent</b><span>all chains in parallel<br>coroutines · Dispatchers.IO</span></div>
         <div class="arrow" aria-hidden="true"></div>
@@ -81,10 +81,10 @@
 
       <h3 class="h3">Engineering highlights</h3>
       <div class="grid highlights">
-        <div class="hl"><h4>Real browser where it is needed</h4><p>React and Nuxt sites render their content in JavaScript, so they are opened in headless Chromium. Images, fonts and media are blocked to keep it fast.</p></div>
+        <div class="hl"><h4>Structured data, no browser</h4><p>JavaScript sites still ship their data: the Nuxt state embedded in the page, or the JSON API the app calls. Reading that is faster and sturdier than rendering the site.</p></div>
         <div class="hl"><h4>One row per movie and location</h4><p>Chains that list movies globally open each movie page to find its cinemas. Coming-soon entries are de-duplicated against today's programme.</p></div>
         <div class="hl"><h4>Fault isolation</h4><p>A failing site only loses its own cinema; the rest of the run continues. Detail pages are retried once.</p></div>
-        <div class="hl"><h4>Debug snapshots</h4><p>When a Playwright page fails, its HTML and a full-page screenshot are saved to <code>scraper-debug/</code> - usually enough to see whether a selector changed or the request was blocked.</p></div>
+        <div class="hl"><h4>Showtimes for 7 days</h4><p>Start time, hall, format (3D, 4DX, subtitled...) and the ticket page of exactly that screening. Screenings that already started are left out.</p></div>
         <div class="hl"><h4>Original titles</h4><p>Extracted wherever the site has them; they make matching a movie against databases like TMDB far more reliable than local titles.</p></div>
         <div class="hl"><h4>Coordinates</h4><p>Every location has coordinates, so results can be sorted by distance from the user.</p></div>
       </div>
@@ -104,8 +104,8 @@ docker run --rm --ipc=host movienee-scrapers --cinema arena</code></pre></div>
         </div>
         <div>
           <h3 class="h3">Gradle <small>JDK 21</small></h3>
-          <div class="code"><button class="copy" type="button">Copy</button><pre><code>./gradlew playwrightCli --args="install chromium"
-./gradlew run --args="--cinema roda --date 2026-10-10"</code></pre></div>
+          <div class="code"><button class="copy" type="button">Copy</button><pre><code>./gradlew run --args="--cinema roda --json results.json"
+./gradlew test</code></pre></div>
           <table class="opts">
             <tr><td><code>--cinema &lt;name&gt;</code></td><td>only this chain (repeatable)</td></tr>
             <tr><td><code>--date &lt;yyyy-MM-dd&gt;</code></td><td>programme date (default today)</td></tr>
@@ -145,7 +145,8 @@ docker run --rm --ipc=host movienee-scrapers --cinema arena</code></pre></div>
             <tr><td><code>cinemaLocation</code></td><td>String</td><td>Location, e.g. <code>CINEPLEXX 4D DELTA CITY</code>; <code>Coming soon</code> when none is scheduled yet</td></tr>
             <tr><td><code>latitude</code>, <code>longitude</code></td><td>Double?</td><td>Coordinates of the location</td></tr>
             <tr><td><code>bookingUrl</code></td><td>String</td><td>Link to the movie on the cinema's website</td></tr>
-            <tr><td><code>isUpcoming</code></td><td>Boolean</td><td>Coming soon rather than now showing</td></tr>
+            <tr><td><code>isUpcoming</code></td><td>Boolean</td><td>Not in today's programme (coming soon or opening later this week)</td></tr>
+            <tr><td><code>showtimes</code></td><td>List</td><td>Screenings of the next 7 days: <code>startsAt</code> (local time), <code>hall</code>, <code>format</code>, <code>bookingUrl</code> of that screening, <code>priceRsd</code> where shown</td></tr>
           </tbody>
         </table>
       </div>

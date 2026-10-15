@@ -33,7 +33,7 @@ jobs:
       - name: Generate API docs
         run: |
           chmod +x gradlew
-          ./gradlew dokkaGenerate --no-daemon
+          ./gradlew test dokkaGenerate --no-daemon
 
       - name: Assemble site
         run: |

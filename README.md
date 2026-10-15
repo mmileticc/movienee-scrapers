@@ -1,7 +1,8 @@
 # Movienee Scrapers
 
 Kotlin scrapers that collect the current and upcoming movie programme of the major cinema chains
-in Serbia and turn seven very different websites into one uniform data model.
+in Serbia - including every showtime of the next 7 days with a link to buy that exact screening -
+and turn seven very different websites into one uniform data model.
 
 **[Project page](https://mmileticc.github.io/movienee-scrapers/)** ·
 **[API documentation](https://mmileticc.github.io/movienee-scrapers/docs/)**
@@ -10,16 +11,20 @@ in Serbia and turn seven very different websites into one uniform data model.
 
 | Chain | Locations | Website | Technique |
 |---|---|---|---|
-| Cineplexx | 7 (Belgrade, Novi Sad, Niš, Kragujevac) | cineplexx.rs | Playwright (React app) |
-| Cine Grand | 5 (Belgrade, Niš, Čačak, Šabac) | cinegrand-mcf.rs | Playwright (Nuxt app) |
-| CineStar | 4 (Belgrade, Novi Sad, Pančevo, Zrenjanin) | cinestarcinemas.rs | Playwright |
-| MTS Dvorana | Belgrade | mtsdvorana.rs | Jsoup |
+| Chain | Locations | Website | Technique |
+|---|---|---|---|
+| Cineplexx | 7 (Belgrade, Novi Sad, Niš, Kragujevac) | cineplexx.rs | the site's JSON API (Playwright fallback) |
+| Cine Grand | 5 (Belgrade, Niš, Čačak, Šabac) | cinegrand-mcf.rs | Jsoup + Nuxt payload |
+| CineStar | 4 (Belgrade, Novi Sad, Pančevo, Zrenjanin) | cinestarcinemas.rs | Jsoup |
+| MTS Dvorana | Belgrade | mtsdvorana.rs | Jsoup + Nuxt payload |
 | Arena Cineplex | Novi Sad | arenacineplex.com | Jsoup |
 | Roda Cineplex | Belgrade | rodacineplex.com | Jsoup |
 | Tuckwood Cineplex | Belgrade | tuck.rs | Jsoup (WordPress) |
 
-Server-rendered sites are read with plain HTTP + [Jsoup](https://jsoup.org/); JavaScript apps are
-rendered in headless Chromium via [Playwright for Java](https://playwright.dev/java/).
+Every chain is read with plain HTTP: server-rendered pages with [Jsoup](https://jsoup.org/), the
+Nuxt sites from the JSON state embedded in their pages, and Cineplexx from the JSON API its React
+site loads. Only if that API fails does Cineplexx fall back to rendering the site in headless
+Chromium via [Playwright for Java](https://playwright.dev/java/).
 
 ## How it works
 
@@ -31,11 +36,18 @@ ScrapingEngineConcurrent           runs all scrapers in parallel (coroutines, Di
         │                          a failing scraper only loses its own cinema
         ▼
 List<ScrapedMovie>                 title, original title, chain, location, coordinates,
-                                   booking URL, now showing / coming soon
+                                   booking URL, now showing / coming soon,
+                                   showtimes: start, hall, format (3D, 4DX, titl...), ticket link
 ```
 
 Design points:
 
+- **Showtimes for 7 days.** Every screening has its local start time, hall, format and - wherever
+  the site has one - the ticket page of exactly that screening. Screenings that already started are
+  left out; a movie that opens later in the week is "coming soon" but already has its showtimes.
+- **Structured data first.** Where a site embeds its data as JSON (the Nuxt state of MTS Dvorana
+  and Cine Grand, the Cineplexx API), that is read instead of the rendered HTML - more reliable,
+  and no browser is needed.
 - **One row per (movie, location).** Chains that list movies globally (Cineplexx, Cine Grand) open
   each movie's page to find the locations showing it; chains with per-location pages (CineStar)
   open each movie page only once, no matter how many locations show it.
@@ -43,9 +55,9 @@ Design points:
   against databases such as TMDB far more reliable than local (Serbian) titles.
 - **Coordinates** of every location (`locations/CinemaLocations.kt`) allow sorting cinemas by
   distance from the user.
-- **Fault isolation.** A changed selector or a timeout never breaks the whole run. When a Playwright
-  page fails, an HTML + PNG snapshot is saved to `scraper-debug/`, which usually shows at a glance
-  whether the site changed or blocked the request.
+- **Fault isolation.** A changed selector or a timeout never breaks the whole run; the summary
+  flags a chain that returned no movies or no showtimes. When a Playwright page (Cineplexx
+  fallback) fails, an HTML + PNG snapshot is saved to `scraper-debug/`.
 - **Identifiable User-Agent** with a link to this repository (`agent/ScrapingConfig.kt`).
 
 ## Running
@@ -71,7 +83,7 @@ results and `scraper-debug/` snapshots land in the mounted folder.
 Requirements: JDK 21.
 
 ```bash
-# Chromium for the Playwright-based scrapers (once)
+# Chromium for the Cineplexx fallback (optional, once)
 ./gradlew playwrightCli --args="install chromium"
 
 # All cinemas, today
@@ -87,12 +99,12 @@ Options: `--cinema <name>` (repeatable, case-insensitive part of the chain name)
 Output format:
 
 ```
-[NOW] <local title> (<original title>) | <location> -> <booking URL>
+[NOW] <local title> (<original title>) | <location> | next <date time> (<n> showtimes) -> <booking URL>
 [UPCOMING] <local title> (<original title>) | <location> -> <booking URL>
 
 === Summary for <date> ===
-- Arena Cineplex: <number of movies>
-- Roda Cineplex: <number of movies>
+- Arena Cineplex: <movies> movies, <showtimes> showtimes
+- Roda Cineplex: <movies> movies, <showtimes> showtimes
 ```
 
 ## Configuration
@@ -100,7 +112,7 @@ Output format:
 | Environment variable | Default | Purpose |
 |---|---|---|
 | `SCRAPER_USER_AGENT` | browser string + `MovieneeScrapers/1.0 (+repo link)` | User-Agent for all requests - please put your own contact here if you run the scrapers regularly |
-| `PLAYWRIGHT_DEEP_TIMEOUT_MS` | `25000` | Timeout for Cineplexx movie pages |
+| `PLAYWRIGHT_DEEP_TIMEOUT_MS` | `25000` | Timeout for Cineplexx movie pages (Playwright fallback only) |
 | `TUCKWOOD_TIMEOUT_MS` | `25000` | Timeout for Tuckwood requests |
 
 ## Adding a cinema
@@ -110,6 +122,9 @@ for a single failing page), add the location coordinates to `CinemaLocations`, a
 scraper in `Main.kt`. See the [API documentation](https://mmileticc.github.io/movienee-scrapers/docs/).
 
 ```bash
+# Parser tests (recorded page fragments, no network)
+./gradlew test
+
 # Generate the API documentation locally -> build/dokka/html/index.html
 ./gradlew dokkaGenerate
 ```
@@ -121,7 +136,7 @@ src/main/kotlin/scraping/
 ├── Main.kt                      command-line entry point
 ├── ScrapingEngineConcurrent.kt  runs the scrapers in parallel
 ├── scraper/                     one scraper per chain + CinemaScraper + debug snapshots
-├── model/ScrapedMovie.kt        the uniform output model
+├── model/                       the uniform output model (ScrapedMovie, ScrapedShowtime)
 ├── locations/                   coordinates of every location
 └── agent/ScrapingConfig.kt      shared settings (User-Agent)
 site/                            project page (GitHub Pages)

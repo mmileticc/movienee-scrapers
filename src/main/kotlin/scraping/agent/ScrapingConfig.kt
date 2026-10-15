@@ -3,6 +3,12 @@ package com.milinko.scraping.agent
 /** Settings shared by all scrapers. */
 object ScrapingConfig {
 
+    /** How many days of showtimes are collected, starting with the scraped date. */
+    const val SHOWTIME_DAYS = 7
+
+    /** Showtimes are local times in Belgrade. */
+    val ZONE: java.time.ZoneId = java.time.ZoneId.of("Europe/Belgrade")
+
     private const val DEFAULT_USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
             "Chrome/120.0.0.0 Safari/537.36 " +

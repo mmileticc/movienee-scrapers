@@ -1,14 +1,23 @@
 package com.milinko.scraping.scraper
 
+import com.milinko.scraping.agent.ScrapingConfig.SHOWTIME_DAYS
 import com.milinko.scraping.agent.ScrapingConfig.USER_AGENT
+import com.milinko.scraping.agent.ScrapingConfig.ZONE
 import com.milinko.scraping.model.ScrapedMovie
+import com.milinko.scraping.model.ScrapedShowtime
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 
 private val logger = LoggerFactory.getLogger("TuckwoodCineplexScraper")
+
+/** "Marilyn Monroe 18:00" -> the time at the end. */
+private val TIME_AT_END = Regex("""(\d{1,2}):(\d{2})\s*$""")
 
 /**
  * Tuckwood Cineplex (Kneza Miloša 7a, Belgrade), tuck.rs: a server-rendered WordPress site
@@ -17,7 +26,10 @@ private val logger = LoggerFactory.getLogger("TuckwoodCineplexScraper")
  * Movie cards (".amy-movie-item"):
  * - the title is always "Serbian title / Original title" in "h3.amy-movie-field-title a"; it is
  *   split on " / " (with spaces) so a title containing a bare "/" is not cut;
- * - the link to the movie page is the same href as on the title/poster ("/amy_movie/.../").
+ * - the link to the movie page is the same href as on the title/poster ("/amy_movie/.../");
+ * - showtimes: ".amy-movie-item-showtimes .amy-cell", one cell per day with the date in ".amy-head"
+ *   ("15. oktobar 2026."), one "Hall HH:MM" line per screening (the halls are named after actors,
+ *   e.g. "Marilyn Monroe 18:00") and a "Rezerviši" link (per movie, not per screening).
  *
  * One fixed location.
  */
@@ -41,7 +53,7 @@ class TuckwoodCineplexScraper : CinemaScraper {
         // 1. Current programme (isUpcoming = false)
         val programmeDoc = fetchWithRetry(programmeUrl, "PROGRAMME")
         if (programmeDoc != null) {
-            val programmeMovies = parseMoviesFromDoc(programmeDoc, isUpcoming = false)
+            val programmeMovies = parseMoviesFromDoc(programmeDoc, isUpcoming = false, date)
             if (programmeMovies.isEmpty()) {
                 logger.info("[$cinemaName] The programme returned 0 movies - check the selectors.")
             }
@@ -51,7 +63,7 @@ class TuckwoodCineplexScraper : CinemaScraper {
         // 2. "Coming soon" section (isUpcoming = true)
         val comingSoonDoc = fetchWithRetry(comingSoonUrl, "COMING SOON")
         if (comingSoonDoc != null) {
-            comingSoon.addAll(parseMoviesFromDoc(comingSoonDoc, isUpcoming = true))
+            comingSoon.addAll(parseMoviesFromDoc(comingSoonDoc, isUpcoming = true, date))
         }
 
         // 3. De-duplicate within this cinema (same as Arena/Roda Cineplex).
@@ -93,7 +105,12 @@ class TuckwoodCineplexScraper : CinemaScraper {
         return null
     }
 
-    private fun parseMoviesFromDoc(doc: Document, isUpcoming: Boolean): List<ScrapedMovie> {
+    internal fun parseMoviesFromDoc(
+        doc: Document,
+        isUpcoming: Boolean,
+        date: LocalDate,
+        now: LocalDateTime = LocalDateTime.now(ZONE),
+    ): List<ScrapedMovie> {
         val result = mutableListOf<ScrapedMovie>()
         val cards = doc.select(".amy-movie-item")
 
@@ -126,10 +143,34 @@ class TuckwoodCineplexScraper : CinemaScraper {
                     cinemaLocation = location,
                     latitude = latitude,
                     longitude = longitude,
-                    isUpcoming = isUpcoming
+                    isUpcoming = isUpcoming,
+                    showtimes = parseShowtimes(card, date, now).map { it.copy(format = formatFromTitle(fullTitle)) }
                 )
             )
         }
         return result
+    }
+
+    /** Screenings in the [SHOWTIME_DAYS] days from [from] that have not started yet. */
+    private fun parseShowtimes(card: Element, from: LocalDate, now: LocalDateTime): List<ScrapedShowtime> {
+        val until = from.plusDays(SHOWTIME_DAYS.toLong())
+        return card.select(".amy-movie-item-showtimes .amy-cell").flatMap { cell ->
+            val day = parseSerbianDate(cell.select(".amy-head > div").text(), from)
+                ?.takeIf { !it.isBefore(from) && it.isBefore(until) } ?: return@flatMap emptyList()
+            val booking = cell.selectFirst(".amy-intro-times a")?.attr("href")?.trim()?.takeIf { it.startsWith("http") }
+            cell.select(".amy-intro-times > div").mapNotNull { line ->
+                val text = line.text().trim()
+                val time = TIME_AT_END.find(text) ?: return@mapNotNull null
+                val (hour, minute) = time.destructured.toList().map { it.toInt() }
+                if (hour > 23 || minute > 59) return@mapNotNull null
+                val startsAt = LocalDateTime.of(day, LocalTime.of(hour, minute))
+                if (startsAt.isBefore(now)) return@mapNotNull null
+                ScrapedShowtime(
+                    startsAt = startsAt.toString(),
+                    hall = text.substring(0, time.range.first).trim().ifEmpty { null },
+                    bookingUrl = booking,
+                )
+            }
+        }.sortedBy { it.startsAt }
     }
 }

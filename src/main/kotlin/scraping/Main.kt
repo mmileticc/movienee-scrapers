@@ -76,14 +76,20 @@ suspend fun main(args: Array<String>) {
     movies.sortedWith(compareBy({ it.cinemaName }, { it.cinemaLocation }, { it.title })).forEach { movie ->
         val status = if (movie.isUpcoming) "UPCOMING" else "NOW"
         val original = movie.originalTitle?.let { " ($it)" }.orEmpty()
-        println("[$status] ${movie.title}$original | ${movie.cinemaLocation} -> ${movie.bookingUrl}")
+        val next = movie.showtimes.firstOrNull()?.let { " | next ${it.startsAt.replace('T', ' ')} (${movie.showtimes.size} showtimes)" }.orEmpty()
+        println("[$status] ${movie.title}$original | ${movie.cinemaLocation}$next -> ${movie.bookingUrl}")
     }
 
     println("\n=== Summary for $date ===")
     scrapers.forEach { scraper ->
-        val count = movies.count { it.cinemaName == scraper.cinemaName }
-        val note = if (count == 0) "  <- check the log above and scraper-debug/" else ""
-        println("- ${scraper.cinemaName}: $count$note")
+        val rows = movies.filter { it.cinemaName == scraper.cinemaName }
+        val showtimes = rows.sumOf { it.showtimes.size }
+        val note = when {
+            rows.isEmpty() -> "  <- check the log above and scraper-debug/"
+            showtimes == 0 && rows.any { !it.isUpcoming } -> "  <- no showtimes, check the log"
+            else -> ""
+        }
+        println("- ${scraper.cinemaName}: ${rows.size} movies, $showtimes showtimes$note")
     }
 
     jsonFile?.let { file ->

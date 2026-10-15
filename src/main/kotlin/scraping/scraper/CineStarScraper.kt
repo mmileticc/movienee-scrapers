@@ -1,28 +1,32 @@
 package com.milinko.scraping.scraper
 
-import com.microsoft.playwright.Browser
-import com.microsoft.playwright.BrowserContext
-import com.microsoft.playwright.BrowserType
-import com.microsoft.playwright.Page
-import com.microsoft.playwright.Playwright
+import com.milinko.scraping.agent.ScrapingConfig.SHOWTIME_DAYS
 import com.milinko.scraping.agent.ScrapingConfig.USER_AGENT
+import com.milinko.scraping.agent.ScrapingConfig.ZONE
 import com.milinko.scraping.locations.CinemaLocations
 import com.milinko.scraping.model.ScrapedMovie
+import com.milinko.scraping.model.ScrapedShowtime
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
 import org.slf4j.LoggerFactory
+import java.io.IOException
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 
 private val logger = LoggerFactory.getLogger("CineStarScraper")
 
+private val TIME = Regex("""(\d{1,2}):(\d{2})""")
+
 /**
  * CineStar (4 locations), cinestarcinemas.rs: classic server-rendered pages (jQuery + Bootstrap),
- * currently read with Playwright.
+ * read with Jsoup.
  *
- * Unlike Cine Grand (organized per movie), every location has its own page (e.g. "/novi-sad-big")
- * with its complete programme (title, genre, runtime, screenings for about three weeks). The
- * original title is not on those cards, only on the movie's own page ("Izvorni naslov" inside
- * ".actors-producer"), so that page is opened once per unique movie - not per (movie, location),
+ * Every location has its own page (e.g. "/novi-sad-big") with its complete programme: `.movie-item`
+ * cards with the title and, per day, a `.day-wrapper` ("sreda 21.10.") holding one `a.perf` link per
+ * screening (format "4DX - TITL", time, hall, ticket page). The original title is only on the movie's
+ * own page ("Izvorni naslov"), so that page is read once per unique movie - not per (movie, location),
  * since the same movie often plays at all four locations.
  *
  * The location pages were taken from the "Izaberi svoj CineStar" dropdown (`<select id="kino">`)
@@ -41,107 +45,74 @@ class CineStarScraper : CinemaScraper {
     )
 
     override fun scrape(date: LocalDate): List<ScrapedMovie> {
-        val rawMovies = mutableListOf<ScrapedMovie>()
-        var finalMovies: List<ScrapedMovie> = emptyList()
-
-        logger.info("[$cinemaName] Starting the Playwright driver...")
-
-        Playwright.create().use { playwright ->
-
-            try {
-                val browser = playwright.chromium().launch(BrowserType.LaunchOptions().setHeadless(true))
-                val context = browser.newContext(Browser.NewContextOptions().setViewportSize(1920, 1080))
-                val page = context.newPage()
-
-                page.setExtraHTTPHeaders(mapOf("User-Agent" to USER_AGENT))
-
-                // Block images, fonts and media for speed.
-                page.route("**/*") { route ->
-                    val resourceType = route.request().resourceType()
-                    if (resourceType == "image" || resourceType == "font" || resourceType == "media") {
-                        route.abort()
-                    } else {
-                        route.resume()
-                    }
-                }
-
-                try {
-                    for ((path, locationName) in locations) {
-                        try {
-                            val url = "$baseUrl$path"
-                            logger.info("[$cinemaName] [$locationName] Opening: $url")
-                            page.navigate(url)
-                            page.waitForSelector(".movie-item", Page.WaitForSelectorOptions().setTimeout(15000.0))
-
-                            val doc = Jsoup.parse(page.content())
-                            val locationMovies = parseMoviesFromDoc(doc, locationName)
-                            logger.info("[$cinemaName] [$locationName] Movies found: ${locationMovies.size}")
-                            rawMovies.addAll(locationMovies)
-                        } catch (e: Exception) {
-                            logger.warn("[$cinemaName] [$locationName] Failed to scrape: ${e.message}")
-                            saveDebugSnapshot(page, cinemaName, path.trim('/'))
-                        }
-                    }
-
-                    finalMovies = try {
-                        enrichWithOriginalTitles(context, rawMovies)
-                    } catch (e: Exception) {
-                        // If enrichment fails completely, return the movies without original
-                        // titles rather than lose the whole run over a secondary detail.
-                        logger.warn("[$cinemaName] Adding original titles failed - returning the movies without them: ${e.message}")
-                        rawMovies
-                    }
-                } finally {
-                    context.close()
-                    browser.close()
-                }
-            } catch (e: Exception) {
-                logger.warn("[$cinemaName] Failed to start or prepare the browser - nothing scraped this run: ${e.message}")
-                finalMovies = rawMovies
+        val now = LocalDateTime.now(ZONE)
+        val rawMovies = locations.flatMap { (path, locationName) ->
+            val doc = fetch("$baseUrl$path") ?: return@flatMap emptyList()
+            parseLocationPage(doc, locationName, date, now).also { movies ->
+                logger.info("[$cinemaName] [$locationName] Movies: ${movies.size}, showtimes: ${movies.sumOf { it.showtimes.size }}")
             }
         }
-
-        return finalMovies
+        return try {
+            enrichWithOriginalTitles(rawMovies)
+        } catch (e: Exception) {
+            // Losing the original titles must not lose the whole run.
+            logger.warn("[$cinemaName] Adding original titles failed - returning the movies without them: ${e.message}")
+            rawMovies
+        }
     }
 
-    private fun parseMoviesFromDoc(doc: Document, locationName: String): List<ScrapedMovie> {
-        val result = mutableListOf<ScrapedMovie>()
+    /** The programme of one location, with the screenings in the window that have not started yet. */
+    internal fun parseLocationPage(doc: Document, locationName: String, date: LocalDate, now: LocalDateTime): List<ScrapedMovie> {
         val coordinates = CinemaLocations.findCoordinates(locationName)
+        return doc.select(".movie-item").mapNotNull { card ->
+            val bookingUrl = card.selectFirst("a.poster-wrapper")?.attr("href")?.trim().orEmpty()
+            val heading = card.selectFirst(".movie-desc h2") ?: return@mapNotNull null
+            if (bookingUrl.isEmpty()) return@mapNotNull null
 
-        for (card in doc.select(".movie-item")) {
-            val bookingUrl = card.select("a.poster-wrapper").first()?.attr("href")?.trim().orEmpty()
-            val heading = card.select(".movie-desc h2").first()
-
-            if (bookingUrl.isEmpty() || heading == null) {
-                continue
-            }
-
-            // A ".filmlabel" badge in the heading marks a coming-soon movie; it is removed from
-            // the title text.
-            val labelElement = heading.select(".filmlabel").first()
-            val isUpcoming = labelElement != null
-            labelElement?.remove()
+            // A ".filmlabel" badge ("Pretpremijera", "Uskoro") marks a movie that has not opened
+            // yet; it is removed from the title text.
+            val label = heading.selectFirst(".filmlabel")
+            label?.remove()
             val title = heading.text().trim()
+            if (title.isEmpty()) return@mapNotNull null
 
-            if (title.isEmpty()) {
-                continue
-            }
-
-            result.add(
-                ScrapedMovie(
-                    title = title,
-                    originalTitle = null,
-                    cinemaName = cinemaName,
-                    cinemaLocation = locationName,
-                    latitude = coordinates?.lat,
-                    longitude = coordinates?.lon,
-                    bookingUrl = bookingUrl,
-                    isUpcoming = isUpcoming
-                )
+            ScrapedMovie(
+                title = title,
+                originalTitle = null,
+                cinemaName = cinemaName,
+                cinemaLocation = locationName,
+                latitude = coordinates?.lat,
+                longitude = coordinates?.lon,
+                bookingUrl = bookingUrl,
+                isUpcoming = label != null,
+                showtimes = parseShowtimes(card, date, now),
             )
         }
+    }
 
-        return result
+    private fun parseShowtimes(card: Element, from: LocalDate, now: LocalDateTime): List<ScrapedShowtime> {
+        val until = from.plusDays(SHOWTIME_DAYS.toLong())
+        return card.select(".day-wrapper").flatMap { dayBlock ->
+            val day = parseNumericDate(dayBlock.selectFirst(".day")?.text().orEmpty(), from)
+                ?.takeIf { !it.isBefore(from) && it.isBefore(until) }
+                ?: return@flatMap emptyList()
+            dayBlock.select("a.perf").mapNotNull { perf -> parseScreening(perf, day, now) }
+        }.sortedBy { it.startsAt }
+    }
+
+    /** `<a class="perf" href=ticket><div class="format">4DX - TITL</div><div class="time">19:00</div><div class="venue">Sala 2</div></a>` */
+    private fun parseScreening(perf: Element, day: LocalDate, now: LocalDateTime): ScrapedShowtime? {
+        val time = TIME.find(perf.selectFirst(".time")?.text().orEmpty()) ?: return null
+        val (hour, minute) = time.destructured.toList().map { it.toInt() }
+        if (hour > 23 || minute > 59) return null
+        val startsAt = LocalDateTime.of(day, LocalTime.of(hour, minute))
+        if (startsAt.isBefore(now)) return null
+        return ScrapedShowtime(
+            startsAt = startsAt.toString(),
+            hall = perf.selectFirst(".venue")?.text()?.trim()?.ifEmpty { null },
+            format = perf.selectFirst(".format")?.text()?.trim()?.ifEmpty { null },
+            bookingUrl = perf.attr("href").trim().takeIf { it.startsWith("http") },
+        )
     }
 
     /**
@@ -149,50 +120,25 @@ class CineStarScraper : CinemaScraper {
      * numeric id at the end of bookingUrl, e.g. ".../hari-poter-i-kamen-mudrosti/6579") appears once
      * per location, so titles are cached by that id and each page is read only once.
      */
-    private fun enrichWithOriginalTitles(context: BrowserContext, movies: List<ScrapedMovie>): List<ScrapedMovie> {
+    private fun enrichWithOriginalTitles(movies: List<ScrapedMovie>): List<ScrapedMovie> {
         val originalTitlesById = mutableMapOf<String, String?>()
-
         return movies.map { movie ->
             val movieId = movie.bookingUrl.substringAfterLast("/")
-            val originalTitle = if (originalTitlesById.containsKey(movieId)) {
-                originalTitlesById.getValue(movieId)
-            } else {
-                logger.info("[$cinemaName] Reading the original title of: ${movie.title}")
-                val title = extractOriginalTitle(context, movie.bookingUrl)
-                originalTitlesById[movieId] = title
-                title
+            val originalTitle = originalTitlesById.getOrPut(movieId) {
+                // A short pause between movie pages, to be gentle with the site.
+                Thread.sleep((200..600).random().toLong())
+                fetch(movie.bookingUrl)
+                    ?.select(".movie-detail-item:has(span.gray:contains(Izvorni naslov)) span:not(.gray)")
+                    ?.first()?.text()?.trim()?.takeIf { it.isNotEmpty() }
             }
             if (originalTitle != null) movie.copy(originalTitle = originalTitle) else movie
         }
     }
 
-    private fun extractOriginalTitle(context: BrowserContext, movieUrl: String): String? {
-        if (movieUrl.isEmpty()) return null
-
-        val detailPage = context.newPage()
-        return try {
-            detailPage.route("**/*") { route ->
-                val resourceType = route.request().resourceType()
-                if (resourceType == "image" || resourceType == "font" || resourceType == "media") {
-                    route.abort()
-                } else {
-                    route.resume()
-                }
-            }
-
-            detailPage.navigate(movieUrl)
-            detailPage.waitForSelector(".movie-desc h1", Page.WaitForSelectorOptions().setTimeout(10000.0))
-
-            val doc = Jsoup.parse(detailPage.content())
-
-            // The site labels the field "Izvorni naslov" (original title).
-            doc.select(".movie-detail-item:has(span.gray:contains(Izvorni naslov)) span:not(.gray)")
-                .first()?.text()?.trim()?.takeIf { it.isNotEmpty() }
-        } catch (e: Exception) {
-            logger.warn("[$cinemaName] Failed to read the original title from $movieUrl: ${e.message}")
-            null
-        } finally {
-            detailPage.close()
-        }
+    private fun fetch(url: String): Document? = try {
+        Jsoup.connect(url).userAgent(USER_AGENT).timeout(15_000).get()
+    } catch (e: IOException) {
+        logger.warn("[$cinemaName] Failed to load $url: ${e.message}")
+        null
     }
 }
