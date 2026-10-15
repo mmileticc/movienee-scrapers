@@ -107,6 +107,36 @@ Output format:
 - Roda Cineplex: <movies> movies, <showtimes> showtimes
 ```
 
+## Output
+
+One JSON entry per movie and location (`--json`), here shortened to one screening:
+
+```json
+{
+  "title": "U DUBINAMA",
+  "originalTitle": "Weapons",
+  "cinemaName": "Arena Cineplex",
+  "cinemaLocation": "Arena Cineplex, Bulevar Mihajla Pupina 3, Novi Sad",
+  "latitude": 45.253912026035266,
+  "longitude": 19.845361912039472,
+  "bookingUrl": "http://www.arenacineplex.com/film/4367/U-DUBINAMA",
+  "isUpcoming": false,
+  "showtimes": [
+    {
+      "startsAt": "2026-10-15T19:00",
+      "hall": "2",
+      "format": null,
+      "bookingUrl": "http://ulaznice.arenacineplex.com/rs/site/numSale/index/199916",
+      "priceRsd": 600
+    }
+  ]
+}
+```
+
+`startsAt` is local time in Belgrade. A real run (15 October 2026) gave 775 rows and 3,185
+showtimes at 20 locations - see the totals per chain and a browsable sample with every screening
+on the [project page](https://mmileticc.github.io/movienee-scrapers/#sample).
+
 ## Configuration
 
 | Environment variable | Default | Purpose |

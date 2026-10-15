@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Movienee Scrapers</title>
-  <meta name="description" content="Kotlin scrapers that turn the websites of seven Serbian cinema chains into one uniform data model.">
+  <meta name="description" content="Kotlin scrapers that turn the websites of seven Serbian cinema chains into one uniform data model - movies, locations and every showtime of the week with a ticket link.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -19,6 +19,7 @@
     <nav>
       <a href="#cinemas">Cinemas</a>
       <a href="#how">How it works</a>
+      <a href="#sample">Sample</a>
       <a href="#try">Try it</a>
       <a href="docs/index.html">Docs</a>
       <a class="gh" href="https://github.com/mmileticc/movienee-scrapers" aria-label="GitHub repository">GitHub</a>
@@ -34,18 +35,19 @@
       <p class="lead">
         Scrapers for the current and upcoming movie programme of the major cinema chains in Serbia.
         Every site is different - server-rendered pages, React and Nuxt apps - and every one ends up
-        as the same <code>ScrapedMovie</code>: title, original title, cinema location, coordinates
-        and a booking link.
+        as the same <code>ScrapedMovie</code>: title, original title, cinema location, coordinates,
+        and every showtime of the next 7 days with a link to buy that exact screening.
       </p>
       <div class="cta">
         <a class="btn primary" href="https://github.com/mmileticc/movienee-scrapers">View on GitHub</a>
+        <a class="btn" href="#sample">See a real run</a>
         <a class="btn" href="docs/index.html">API documentation</a>
       </div>
       <dl class="stats">
         <div><dt>7</dt><dd>cinema chains</dd></div>
         <div><dt>20</dt><dd>cinema locations</dd></div>
-        <div><dt>2</dt><dd>scraping techniques</dd></div>
-        <div><dt>1</dt><dd>uniform model</dd></div>
+        <div><dt>3,000+</dt><dd>showtimes a week</dd></div>
+        <div><dt>0</dt><dd>browsers needed</dd></div>
       </dl>
     </div>
   </section>
@@ -119,11 +121,15 @@ docker run --rm --ipc=host movienee-scrapers --cinema arena</code></pre></div>
   <section id="sample" class="section alt">
     <div class="wrap">
       <h2>Sample output</h2>
+      <div class="run" hidden>
+        <p class="sub" id="run-total">One real run.</p>
+        <div class="run-grid" id="run-stats"></div>
+      </div>
       <p class="sub" id="sample-caption">A few rows from a real run.</p>
       <div class="filters" id="sample-filters" hidden></div>
       <div class="table-wrap">
         <table class="sample" id="sample-table" hidden>
-          <thead><tr><th>Title</th><th>Original title</th><th>Chain</th><th>Location</th><th>Status</th></tr></thead>
+          <thead><tr><th>Movie</th><th>Chain</th><th>Location</th><th>Next screening</th><th>Showtimes</th><th>Status</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -150,6 +156,26 @@ docker run --rm --ipc=host movienee-scrapers --cinema arena</code></pre></div>
           </tbody>
         </table>
       </div>
+      <h3 class="h3">One row as JSON</h3>
+      <div class="code"><button class="copy" type="button">Copy</button><pre><code>{
+  "title": "U DUBINAMA",
+  "originalTitle": "Weapons",
+  "cinemaName": "Arena Cineplex",
+  "cinemaLocation": "Arena Cineplex, Bulevar Mihajla Pupina 3, Novi Sad",
+  "latitude": 45.253912026035266,
+  "longitude": 19.845361912039472,
+  "bookingUrl": "http://www.arenacineplex.com/film/4367/U-DUBINAMA",
+  "isUpcoming": false,
+  "showtimes": [
+    {
+      "startsAt": "2026-10-15T19:00",
+      "hall": "2",
+      "format": null,
+      "bookingUrl": "http://ulaznice.arenacineplex.com/rs/site/numSale/index/199916",
+      "priceRsd": 600
+    }
+  ]
+}</code></pre></div>
     </div>
   </section>
 </main>
